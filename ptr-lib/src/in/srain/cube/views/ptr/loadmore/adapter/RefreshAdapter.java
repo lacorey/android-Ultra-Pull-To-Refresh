@@ -5,53 +5,76 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by sinye on 16/11/4
  */
 
 public abstract class RefreshAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>{
+    public static final String TAG = "RefreshAdapter";
     public static final int TYPE_FOOTER = -1;
-    public static final int TYPE_HEADER = 0;
     public static final int TYPE_CONTENT = 1;
-    private View footerView;
-    private List<View> headerViews;
+    private View footer;
+    private List<HeaderModel> headers = new ArrayList<>();
+    private int TYPE_HEADER = 1000001;
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        //header support
+        if(containsViewType(viewType)){
+            return new HeaderViewHolder(findViewByViewType(viewType));
+        }
+        //load more footer
         if (TYPE_FOOTER == viewType) {
             RecyclerView.LayoutParams layoutParams = new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            footerView.setLayoutParams(layoutParams);
-            return new FooterViewHolder(footerView);
+            footer.setLayoutParams(layoutParams);
+            return new FooterViewHolder(footer);
         }
-        // TODO: 16/11/4 add header support
+        //common data
         return onCreateContentViewHolder(parent, viewType);
     }
 
 
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-        if (footerView != null && position >= getContentItemCount()) {
+        //返回header
+        if(headers != null && position < headers.size()){
             return;
         }
-        onBindContentViewHolder(holder, position);
+        //返回footer
+        if (footer != null && position == getItemCount()-1) {
+            return;
+        }
+        //返回common data
+        onBindContentViewHolder(holder, position-headers.size());
     }
 
     @Override
     public int getItemCount() {
-        return getContentItemCount();
+        int itemCount = getContentItemCount();
+        if(headers != null && headers.size() > 0){
+            itemCount += headers.size();
+        }
+        if (footer != null) {
+            itemCount++;
+        }
+        return itemCount;
     }
 
     @Override
     public int getItemViewType(int position) {
-        if (footerView != null && position >= getItemCount() - 1) {
+        //support headers
+        if(headers != null && position < headers.size()){
+            return headers.get(position).type;
+        }
+        //support load more footer
+        if (footer != null && position == getItemCount() -1) {
             return TYPE_FOOTER;
         }
-        if(headerViews != null && headerViews.size() > 0){
-            if(position < headerViews.size()){
-                return TYPE_HEADER;
-            }
-        }
+        //common data
         return getContentItemViewType(position);
     }
 
@@ -77,14 +100,46 @@ public abstract class RefreshAdapter extends RecyclerView.Adapter<RecyclerView.V
     }
 
     public void addFooter(View view) {
-        footerView = view;
+        footer = view;
     }
 
+
+    /****************************  header support  ***************************/
     public void addHeader(View view){
-        if(headerViews == null){
-            headerViews = new ArrayList<>();
+        headers.add(new HeaderModel(view));
+    }
+
+    class HeaderModel{
+        private View view;
+        private int type;
+
+        public HeaderModel(View view){
+            this.view = view;
+            this.type = TYPE_HEADER;
+            TYPE_HEADER ++ ;
         }
-        headerViews.add(view);
+    }
+
+    public boolean containsViewType(int viewType){
+        boolean contains = false;
+        for(HeaderModel model : headers){
+            if(model.type == viewType){
+                contains = true;
+                break;
+            }
+        }
+        return contains;
+    }
+
+    public View findViewByViewType(int viewType){
+        View view = null;
+        for(HeaderModel model : headers){
+            if(model.type == viewType){
+                view = model.view;
+                break;
+            }
+        }
+        return view;
     }
 
 }
